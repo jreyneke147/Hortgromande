@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, isDemoMode } from '../lib/supabase';
 import type { Profile, Role } from '../types';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   profile: Profile | null;
   role: Role | null;
   loading: boolean;
+  demo: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -17,12 +18,32 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/* ------------------------------------------------------------------
+   Demo-mode stubs – used when Supabase env vars are not configured.
+   ------------------------------------------------------------------ */
+const DEMO_USER: User = {
+  id: 'demo-user-id',
+  email: 'demo@hortgro.co.za',
+  app_metadata: {},
+  user_metadata: { full_name: 'Demo User' },
+  aud: 'authenticated',
+  created_at: new Date().toISOString(),
+} as User;
+
+const DEMO_PROFILE: Profile = {
+  id: 'demo-user-id',
+  full_name: 'Demo User',
+  email: 'demo@hortgro.co.za',
+} as Profile;
+
+/* ------------------------------------------------------------------ */
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(isDemoMode ? DEMO_USER : null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(isDemoMode ? DEMO_PROFILE : null);
   const [role, setRole] = useState<Role | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isDemoMode);
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -38,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    if (isDemoMode) return;
+
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
@@ -64,11 +87,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn(email: string, password: string) {
+    if (isDemoMode) {
+      setUser(DEMO_USER);
+      setProfile(DEMO_PROFILE);
+      return { error: null };
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   }
 
   async function signUp(email: string, password: string, fullName: string) {
+    if (isDemoMode) return { error: null };
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -78,18 +107,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    if (isDemoMode) return;
     await supabase.auth.signOut();
     setProfile(null);
     setRole(null);
   }
 
   async function resetPassword(email: string) {
+    if (isDemoMode) return { error: null };
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error: error as Error | null };
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, profile, role, loading, demo: isDemoMode, signIn, signUp, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
