@@ -33,6 +33,7 @@ import CommercialReview from './pages/commercial/CommercialReview';
 import ConsignmentList from './pages/commercial/ConsignmentList';
 import ShipmentDetail from './pages/commercial/ShipmentDetail';
 import CommercialTrends from './pages/commercial/CommercialTrends';
+import FinancialRecon from './pages/financial/FinancialRecon';
 
 function App() {
   return (
@@ -67,6 +68,7 @@ function App() {
             <Route path="/documents" element={<Documents />} />
             <Route path="/forecasting" element={<Forecasting />} />
             <Route path="/forecasting/mistico" element={<MisticoForecasting />} />
+            <Route path="/financial-recon" element={<FinancialRecon />} />
             <Route path="/risk-register" element={<RiskRegister />} />
             <Route path="/health" element={<HealthOverview />} />
             <Route path="/governance" element={<Governance />} />

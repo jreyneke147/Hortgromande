@@ -24,6 +24,7 @@ import {
   Ship,
   Upload,
   Package,
+  Wallet,
 } from 'lucide-react';
 
 interface NavSection {
@@ -67,6 +68,7 @@ const navSections: NavSection[] = [
     items: [
       { to: '/forecasting', label: 'Forecasting (KPI)', icon: TrendingUp },
       { to: '/forecasting/mistico', label: 'Mistico Forecast', icon: TrendingUp },
+      { to: '/financial-recon', label: 'Financial Recon', icon: Wallet },
       { to: '/benchmarking', label: 'Benchmarking', icon: Award },
       { to: '/risk-register', label: 'Risk Register', icon: AlertTriangle },
       { to: '/health', label: 'Health Scores', icon: HeartPulse },
