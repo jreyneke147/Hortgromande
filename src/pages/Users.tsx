@@ -1,18 +1,27 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, type FormEvent } from 'react';
 import { Search, Users as UsersIcon, Shield, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { Profile, Role } from '../types';
 import StatusBadge from '../components/ui/StatusBadge';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import EmptyState from '../components/ui/EmptyState';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Users() {
+  const { session } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleDropdownId, setRoleDropdownId] = useState<string | null>(null);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [showCreateAdminForm, setShowCreateAdminForm] = useState(false);
+  const [creatingAdminUser, setCreatingAdminUser] = useState(false);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminOrganisation, setNewAdminOrganisation] = useState('');
+  const [newAdminPhone, setNewAdminPhone] = useState('');
 
   const load = useCallback(async () => {
     const [profRes, roleRes] = await Promise.all([
@@ -60,6 +69,52 @@ export default function Users() {
     await changeRole(profileId, adminRole.id);
   }
 
+  async function createAdminUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!session?.access_token) {
+      alert('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    setCreatingAdminUser(true);
+
+    try {
+      const response = await fetch('/.netlify/functions/users-create-admin', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          fullName: newAdminName,
+          email: newAdminEmail,
+          password: newAdminPassword,
+          organisation: newAdminOrganisation,
+          phone: newAdminPhone,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({})) as { error?: string; message?: string };
+
+      if (!response.ok) {
+        alert(data.error || 'Failed to create admin user.');
+        return;
+      }
+
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setNewAdminOrganisation('');
+      setNewAdminPhone('');
+      setShowCreateAdminForm(false);
+      alert(data.message || 'Admin user created successfully.');
+      await load();
+    } finally {
+      setCreatingAdminUser(false);
+    }
+  }
+
   const filtered = profiles.filter(p =>
     p.full_name.toLowerCase().includes(search.toLowerCase()) ||
     p.email.toLowerCase().includes(search.toLowerCase())
@@ -74,6 +129,13 @@ export default function Users() {
           <h1 className="text-2xl font-bold text-gray-900">Users & Permissions</h1>
           <p className="text-sm text-gray-500 mt-1">{profiles.length} user{profiles.length !== 1 ? 's' : ''} registered</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowCreateAdminForm((prev) => !prev)}
+          className="inline-flex items-center rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand-100"
+        >
+          {showCreateAdminForm ? 'Cancel' : 'Create Admin User'}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -90,6 +152,63 @@ export default function Users() {
           );
         })}
       </div>
+
+      {showCreateAdminForm && (
+        <div className="card p-4">
+          <h2 className="text-base font-semibold text-gray-900">Create Admin User</h2>
+          <p className="text-sm text-gray-500 mt-1">This creates a new account and assigns an admin role immediately.</p>
+          <form onSubmit={createAdminUser} className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input
+              type="text"
+              value={newAdminName}
+              onChange={(event) => setNewAdminName(event.target.value)}
+              placeholder="Full name"
+              className="input-field"
+              required
+            />
+            <input
+              type="email"
+              value={newAdminEmail}
+              onChange={(event) => setNewAdminEmail(event.target.value)}
+              placeholder="Email address"
+              className="input-field"
+              required
+            />
+            <input
+              type="password"
+              value={newAdminPassword}
+              onChange={(event) => setNewAdminPassword(event.target.value)}
+              placeholder="Temporary password (min 8 chars)"
+              className="input-field"
+              minLength={8}
+              required
+            />
+            <input
+              type="text"
+              value={newAdminOrganisation}
+              onChange={(event) => setNewAdminOrganisation(event.target.value)}
+              placeholder="Organisation (optional)"
+              className="input-field"
+            />
+            <input
+              type="text"
+              value={newAdminPhone}
+              onChange={(event) => setNewAdminPhone(event.target.value)}
+              placeholder="Phone (optional)"
+              className="input-field md:col-span-2"
+            />
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                disabled={creatingAdminUser}
+                className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {creatingAdminUser ? 'Creating...' : 'Create Admin User'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="card">
         <div className="p-4 border-b border-gray-200">
