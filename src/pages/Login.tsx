@@ -14,7 +14,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, configError } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -24,6 +24,10 @@ export default function Login() {
   });
 
   async function onSubmit(data: FormData) {
+    if (configError) {
+      setServerError(configError);
+      return;
+    }
     setServerError('');
     const { error } = await signIn(data.email, data.password);
     if (error) {
@@ -68,9 +72,9 @@ export default function Login() {
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h2>
           <p className="text-sm text-gray-500 mb-8">Sign in to access your dashboard</p>
 
-          {serverError && (
+          {(serverError || configError) && (
             <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              {serverError}
+              {serverError || configError}
             </div>
           )}
 
