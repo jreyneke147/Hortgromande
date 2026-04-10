@@ -26,7 +26,16 @@ export default function Users() {
   useEffect(() => { load(); }, [load]);
 
   async function changeRole(profileId: string, roleId: string) {
-    await supabase.from('profiles').update({ role_id: roleId }).eq('id', profileId);
+    const { error } = await supabase.rpc('change_user_role', {
+      target_user_id: profileId,
+      new_role_id: roleId,
+    });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setRoleDropdownId(null);
     load();
   }
