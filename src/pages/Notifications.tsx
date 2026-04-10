@@ -85,6 +85,12 @@ export default function Notifications() {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
+  function normalizeInternalLink(link: string): string {
+    const trimmedLink = link.trim();
+    if (!trimmedLink) return '/notifications';
+    return trimmedLink.startsWith('/') ? trimmedLink : `/${trimmedLink}`;
+  }
+
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();
     const mins = Math.floor(diff / 60000);
@@ -169,11 +175,31 @@ export default function Notifications() {
                     <span className="inline-flex items-center rounded-md bg-gray-50 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 capitalize">
                       {CATEGORY_LABELS[notif.category] ?? notif.category}
                     </span>
-                    {notif.link && (
-                      <Link to={notif.link} className="text-[11px] text-brand-700 hover:text-brand-800 font-medium">
-                        View details
-                      </Link>
-                    )}
+                    {notif.link && (() => {
+                      const trimmedLink = notif.link.trim();
+                      if (!trimmedLink) return null;
+
+                      const isExternal = /^https?:\/\//i.test(trimmedLink);
+
+                      if (isExternal) {
+                        return (
+                          <a
+                            href={trimmedLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-brand-700 hover:text-brand-800 font-medium"
+                          >
+                            View details
+                          </a>
+                        );
+                      }
+
+                      return (
+                        <Link to={normalizeInternalLink(trimmedLink)} className="text-[11px] text-brand-700 hover:text-brand-800 font-medium">
+                          View details
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
