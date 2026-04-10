@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseConfigError } from '../lib/supabase';
 import type { Profile, Role } from '../types';
 
 interface AuthContextType {
@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   role: Role | null;
+  configError: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [role, setRole] = useState<Role | null>(null);
+  const [configError, setConfigError] = useState<string | null>(supabaseConfigError);
   const [loading, setLoading] = useState(true);
 
   async function fetchProfile(userId: string) {
@@ -38,14 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        fetchProfile(s.user.id);
-      }
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session: s } }) => {
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) {
+          fetchProfile(s.user.id);
+        }
+      })
+      .catch(() => {
+        setConfigError((prev) => prev ?? 'Failed to initialize authentication session.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
@@ -64,11 +73,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn(email: string, password: string) {
+    if (configError) {
+      return { error: new Error(configError) };
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error: error as Error | null };
   }
 
   async function signUp(email: string, password: string, fullName: string) {
+    if (configError) {
+      return { error: new Error(configError) };
+    }
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -84,12 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function resetPassword(email: string) {
+    if (configError) {
+      return { error: new Error(configError) };
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email);
     return { error: error as Error | null };
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, role, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, profile, role, configError, loading, signIn, signUp, signOut, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
