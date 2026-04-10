@@ -12,6 +12,7 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleDropdownId, setRoleDropdownId] = useState<string | null>(null);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [profRes, roleRes] = await Promise.all([
@@ -26,18 +27,37 @@ export default function Users() {
   useEffect(() => { load(); }, [load]);
 
   async function changeRole(profileId: string, roleId: string) {
-    const { error } = await supabase.rpc('change_user_role', {
-      target_user_id: profileId,
-      new_role_id: roleId,
-    });
+    setUpdatingUserId(profileId);
+    try {
+      const { error } = await supabase.rpc('change_user_role', {
+        target_user_id: profileId,
+        new_role_id: roleId,
+      });
 
-    if (error) {
-      alert(error.message);
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setRoleDropdownId(null);
+      await load();
+    } finally {
+      setUpdatingUserId(null);
+    }
+  }
+
+  const adminRole = roles.find((role) => {
+    const roleName = `${role.name} ${role.display_name}`.toLowerCase();
+    return roleName.includes('admin');
+  });
+
+  async function changeUserToAdmin(profileId: string) {
+    if (!adminRole) {
+      alert('Admin role was not found.');
       return;
     }
 
-    setRoleDropdownId(null);
-    load();
+    await changeRole(profileId, adminRole.id);
   }
 
   const filtered = profiles.filter(p =>
@@ -127,6 +147,7 @@ export default function Users() {
                                 <button
                                   key={r.id}
                                   onClick={() => changeRole(user.id, r.id)}
+                                  disabled={updatingUserId === user.id}
                                   className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                                     user.role_id === r.id ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
                                   }`}
@@ -138,6 +159,16 @@ export default function Users() {
                             </div>
                           )}
                         </div>
+                        {adminRole && user.role_id !== adminRole.id && (
+                          <button
+                            type="button"
+                            onClick={() => changeUserToAdmin(user.id)}
+                            disabled={updatingUserId === user.id}
+                            className="mt-2 inline-flex items-center rounded-md border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {updatingUserId === user.id ? 'Updating...' : 'Make Admin'}
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         <StatusBadge status={user.is_active ? 'active' : 'inactive'} />
