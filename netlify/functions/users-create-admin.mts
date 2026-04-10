@@ -90,10 +90,10 @@ export default async (req: Request) => {
   }
 
   const callerProfileResponse = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?select=id,roles(name,display_name)&id=eq.${encodeURIComponent(callerId)}&limit=1`,
+    `${supabaseUrl}/rest/v1/profiles?select=id,role_id&id=eq.${encodeURIComponent(callerId)}&limit=1`,
     {
       method: 'GET',
-      headers: createSupabaseHeaders(supabaseAnonKey, callerToken),
+      headers: createSupabaseHeaders(supabaseServiceKey, supabaseServiceKey),
     }
   );
 
@@ -101,8 +101,27 @@ export default async (req: Request) => {
     return json({ error: 'Unable to verify caller permissions.' }, 403);
   }
 
-  const callerProfiles = (await callerProfileResponse.json()) as Array<{ roles?: { name?: string; display_name?: string } | null }>;
-  const callerRole = callerProfiles[0]?.roles;
+  const callerProfiles = (await callerProfileResponse.json()) as Array<{ role_id?: string | null }>;
+  const callerRoleId = callerProfiles[0]?.role_id;
+
+  if (!callerRoleId) {
+    return json({ error: 'Unable to verify caller permissions.' }, 403);
+  }
+
+  const callerRoleResponse = await fetch(
+    `${supabaseUrl}/rest/v1/roles?select=name,display_name&id=eq.${encodeURIComponent(callerRoleId)}&limit=1`,
+    {
+      method: 'GET',
+      headers: createSupabaseHeaders(supabaseServiceKey, supabaseServiceKey),
+    }
+  );
+
+  if (!callerRoleResponse.ok) {
+    return json({ error: 'Unable to verify caller permissions.' }, 403);
+  }
+
+  const callerRoles = (await callerRoleResponse.json()) as Array<{ name?: string; display_name?: string }>;
+  const callerRole = callerRoles[0];
 
   if (!isAdminRole(callerRole)) {
     return json({ error: 'Only admin users can create admin users.' }, 403);
