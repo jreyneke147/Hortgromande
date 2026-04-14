@@ -28,6 +28,16 @@ const INDICATORS = [
   { key: 'youth_ownership_pct', code: 'YOWN', name: 'Youth Ownership', unit: '%', pillar: 'transformation' },
 ] as const;
 
+function asSafeString(value: unknown, fallback = '') {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : fallback;
+  return fallback;
+}
+
+function isActiveStatus(status: unknown) {
+  return asSafeString(status).toLowerCase() === 'active';
+}
+
 function mean(values: number[]) {
   if (values.length === 0) return 0;
   return values.reduce((sum, value) => sum + value, 0) / values.length;
@@ -49,10 +59,10 @@ function valueForIndicator(record: typeof PDI_ASSESSMENTS[number], indicatorKey:
 
 export function getPdiEntityOptions() {
   return PDI_ENTITIES.map(entity => ({
-    id: entity.entity_code,
-    name: entity.name,
-    region: entity.town ?? entity.province ?? '',
-    province: entity.province ?? '',
+    id: asSafeString(entity.entity_code),
+    name: asSafeString(entity.name, 'Unknown Entity'),
+    region: asSafeString(entity.town ?? entity.province),
+    province: asSafeString(entity.province),
   })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -61,8 +71,8 @@ export function getPdiPeriods() {
 }
 
 export function getPdiDashboardStats() {
-  const activeEntities = PDI_ENTITIES.filter(entity => entity.status.toLowerCase() === 'active');
-  const activeFarms = PDI_FARMS.filter(farm => farm.status.toLowerCase() === 'active');
+  const activeEntities = PDI_ENTITIES.filter(entity => isActiveStatus(entity.status));
+  const activeFarms = PDI_FARMS.filter(farm => isActiveStatus(farm.status));
   const activeByProvince = new Map<string, number>();
   activeEntities.forEach(entity => activeByProvince.set(entity.province ?? 'Unknown', (activeByProvince.get(entity.province ?? 'Unknown') ?? 0) + 1));
   const trendData = getPdiPeriods().map(period => {
@@ -147,7 +157,7 @@ export function getPdiBenchmarks(entityCode: string, periodName: string): Derive
       programme_avg: mean(peerRows.map(item => valueForIndicator(item, indicator.key))),
       sector_avg: mean(values),
       percentile_rank: percentileRank(values, entityValue),
-      entities: { name: entityRow.entity_name, region: entityRow.province ?? '' },
+      entities: { name: asSafeString(entityRow.entity_name, 'Unknown Entity'), region: asSafeString(entityRow.province) },
       indicators: {
         name: indicator.name,
         code: indicator.code,
@@ -174,5 +184,5 @@ export function getPdiEntityTrend(entityCode: string) {
 }
 
 export function getPdiEntityMeta(entityCode: string) {
-  return PDI_ENTITIES.find(entity => entity.entity_code === entityCode) ?? null;
+  return PDI_ENTITIES.find(entity => asSafeString(entity.entity_code) === entityCode) ?? null;
 }
