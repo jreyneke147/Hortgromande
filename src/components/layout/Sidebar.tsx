@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -25,11 +26,19 @@ import {
   Upload,
   Package,
   Wallet,
+  ChevronDown,
 } from 'lucide-react';
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  children?: { to: string; label: string }[];
+}
 
 interface NavSection {
   title?: string;
-  items: { to: string; label: string; icon: typeof LayoutDashboard }[];
+  items: NavItem[];
 }
 
 const navSections: NavSection[] = [
@@ -52,7 +61,16 @@ const navSections: NavSection[] = [
       { to: '/programmes', label: 'Programmes', icon: FolderKanban },
       { to: '/projects', label: 'Projects / Entities', icon: Building2 },
       { to: '/indicators', label: 'Indicators', icon: BarChart3 },
-      { to: '/data-collection', label: 'Data Collection', icon: ClipboardList },
+      {
+        to: '/data-collection',
+        label: 'Data Collection',
+        icon: ClipboardList,
+        children: [
+          { to: '/data-collection', label: 'Submissions' },
+          { to: '/data-collection/production-summary', label: 'Production Summary' },
+          { to: '/data-collection/financial-summary', label: 'Financial Summary' },
+        ],
+      },
     ],
   },
   {
@@ -100,6 +118,24 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const location = useLocation();
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
+    '/data-collection': true,
+  });
+
+  function isItemActive(item: NavItem) {
+    if (item.to === '/') return location.pathname === '/';
+    if (item.children?.some(child => location.pathname === child.to)) return true;
+    return location.pathname.startsWith(item.to);
+  }
+
+  function toggleMenu(itemTo: string) {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [itemTo]: !prev[itemTo],
+    }));
+  }
+
   return (
     <aside className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-brand-950 text-white transition-all duration-300 ${collapsed ? 'w-[68px]' : 'w-60'}`}>
       <div className="flex items-center gap-3 px-4 h-16 border-b border-white/10">
@@ -123,24 +159,68 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             )}
             {collapsed && si > 0 && <div className="mx-3 my-2 border-t border-white/10" />}
             <div className="space-y-0.5">
-              {section.items.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-                      isActive
-                        ? 'bg-white/15 text-white'
-                        : 'text-white/60 hover:text-white hover:bg-white/8'
-                    } ${collapsed ? 'justify-center' : ''}`
-                  }
-                  title={collapsed ? item.label : undefined}
-                >
-                  <item.icon size={17} className="flex-shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </NavLink>
-              ))}
+              {section.items.map(item => {
+                const active = isItemActive(item);
+                const hasChildren = Boolean(item.children && item.children.length > 0);
+                const expanded = hasChildren && expandedMenus[item.to] !== false;
+
+                return (
+                  <div key={item.to}>
+                    {hasChildren && !collapsed ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleMenu(item.to)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                          active
+                            ? 'bg-white/15 text-white'
+                            : 'text-white/60 hover:text-white hover:bg-white/8'
+                        }`}
+                      >
+                        <item.icon size={17} className="flex-shrink-0" />
+                        <span className="truncate flex-1 text-left">{item.label}</span>
+                        <ChevronDown size={15} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                      </button>
+                    ) : (
+                      <NavLink
+                        to={item.to}
+                        end={item.to === '/'}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+                            isActive || active
+                              ? 'bg-white/15 text-white'
+                              : 'text-white/60 hover:text-white hover:bg-white/8'
+                          } ${collapsed ? 'justify-center' : ''}`
+                        }
+                        title={collapsed ? item.label : undefined}
+                      >
+                        <item.icon size={17} className="flex-shrink-0" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </NavLink>
+                    )}
+
+                    {hasChildren && expanded && !collapsed && (
+                      <div className="ml-6 mt-1 space-y-0.5 border-l border-white/10 pl-3">
+                        {item.children?.map(child => (
+                          <NavLink
+                            key={child.to}
+                            to={child.to}
+                            end={child.to === '/data-collection'}
+                            className={({ isActive }) =>
+                              `flex items-center rounded-md px-2.5 py-1.5 text-xs transition-colors ${
+                                isActive
+                                  ? 'text-white bg-white/10'
+                                  : 'text-white/55 hover:text-white hover:bg-white/8'
+                              }`
+                            }
+                          >
+                            {child.label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
