@@ -34,6 +34,8 @@ import ConsignmentList from './pages/commercial/ConsignmentList';
 import ShipmentDetail from './pages/commercial/ShipmentDetail';
 import CommercialTrends from './pages/commercial/CommercialTrends';
 import FinancialRecon from './pages/financial/FinancialRecon';
+import ProductionSummary from './pages/dataCollection/ProductionSummary';
+import FinancialSummary from './pages/dataCollection/FinancialSummary';
 
 function App() {
   return (
@@ -60,6 +62,8 @@ function App() {
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/indicators" element={<Indicators />} />
             <Route path="/data-collection" element={<DataCollection />} />
+            <Route path="/data-collection/production-summary" element={<ProductionSummary />} />
+            <Route path="/data-collection/financial-summary" element={<FinancialSummary />} />
             <Route path="/data-collection/:id" element={<SubmissionDetail />} />
             <Route path="/benchmarking" element={<Benchmarking />} />
             <Route path="/training" element={<Training />} />
